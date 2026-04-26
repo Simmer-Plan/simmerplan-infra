@@ -1,0 +1,3 @@
+aws_region  = "ca-central-1"
+environment = "sandbox"
+account_id  = "222222222222"  # sandbox account ID
