@@ -15,6 +15,7 @@
 - name: Seed DynamoDB with initial data
   hosts: localhost
   gather_facts: false
-  # Stub — implementation in SIM-30
+  # Required extra vars: environment (sandbox|prod)
+  # Optional extra vars: app_repo_path (defaults to sibling simmerplan-app dir)
   roles:
     - dynamodb
