@@ -1,3 +1,1 @@
-aws_region        = "ca-central-1"
-state_bucket_name = "simmerplan-terraform-state"
-lock_table_name   = "simmerplan-terraform-locks"
+aws_region = "ca-central-1"

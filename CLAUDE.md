@@ -69,7 +69,7 @@ Examples: `simmerplan-sandbox`, `simmerplan-prod`, `simmerplan-api-sandbox`
 
 ## Remote state backend
 
-S3 + DynamoDB locking with encryption. Bootstrap must be run **once manually** against the management account before any account workspaces can be initialised:
+S3 with native lock files (`use_lockfile = true`) and encryption. Bootstrap must be run **once manually** against the management account before any account workspaces can be initialised:
 
 ```bash
 cd terraform/bootstrap
@@ -77,7 +77,7 @@ terraform init
 terraform apply
 ```
 
-The bootstrap outputs the bucket name and DynamoDB table name; pass them as `-backend-config` arguments when running `terraform init` in any account workspace.
+The bootstrap outputs the bucket name; pass it as a `-backend-config` argument when running `terraform init` in any account workspace. No DynamoDB table is required.
 
 ---
 
@@ -88,8 +88,8 @@ The bootstrap outputs the bucket name and DynamoDB table name; pass them as `-ba
 cd terraform/accounts/sandbox
 terraform init \
   -backend-config="bucket=<state-bucket>" \
-  -backend-config="dynamodb_table=<lock-table>" \
-  -backend-config="region=ca-central-1"
+  -backend-config="region=ca-central-1" \
+  -backend-config="use_lockfile=true"
 
 # Plan / apply
 terraform plan -var-file="terraform.tfvars"
