@@ -16,7 +16,7 @@ terraform {
   backend "s3" {
     key     = "sandbox/terraform.tfstate"
     encrypt = true
-    # bucket, region, and dynamodb_table set via -backend-config or environment
+    # bucket, region, and use_lockfile set via -backend-config or environment
     # See terraform/bootstrap/README.md for setup instructions
   }
 }
