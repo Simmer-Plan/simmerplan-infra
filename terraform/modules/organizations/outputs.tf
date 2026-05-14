@@ -11,3 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+output "organization_id" {
+  description = "ID of the AWS Organization"
+  value       = aws_organizations_organization.this.id
+}
+
+output "sandbox_account_id" {
+  description = "AWS account ID for the sandbox member account"
+  value       = aws_organizations_account.sandbox.id
+}
+
+output "prod_account_id" {
+  description = "AWS account ID for the prod member account"
+  value       = aws_organizations_account.prod.id
+}
+
+output "sandbox_ou_id" {
+  description = "ID of the sandbox organisational unit"
+  value       = aws_organizations_organizational_unit.sandbox.id
+}
+
+output "prod_ou_id" {
+  description = "ID of the prod organisational unit"
+  value       = aws_organizations_organizational_unit.prod.id
+}

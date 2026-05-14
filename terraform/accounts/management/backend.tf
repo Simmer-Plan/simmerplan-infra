@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-variable "sandbox_account_email" {
-  description = "Root email address for the sandbox AWS member account"
-  type        = string
-}
-
-variable "prod_account_email" {
-  description = "Root email address for the prod AWS member account"
-  type        = string
+terraform {
+  backend "s3" {
+    key     = "management/terraform.tfstate"
+    encrypt = true
+    # bucket, region, and use_lockfile set via -backend-config or environment
+    # See terraform/bootstrap/README.md for setup instructions
+  }
 }

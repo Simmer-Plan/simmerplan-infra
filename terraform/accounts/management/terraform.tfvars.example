@@ -1,2 +1,11 @@
-aws_region = "ca-central-1"
-account_id = "111111111111"  # management account ID
+aws_region  = "ca-central-1"
+account_id  = "111111111111"  # management account ID
+
+github_org  = "Simmer-Plan"
+github_repo = "simmerplan-infra"
+
+sandbox_account_id    = "222222222222"              # sandbox member account ID
+prod_account_id       = "333333333333"              # prod member account ID
+
+sandbox_account_email = "aws+sandbox@example.com"  # root email for sandbox account
+prod_account_email    = "aws+prod@example.com"      # root email for prod account

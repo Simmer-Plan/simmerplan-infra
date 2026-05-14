@@ -11,3 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+output "role_arn" {
+  description = "ARN of the GitHub Actions IAM role (use in workflow: role-to-assume)"
+  value       = aws_iam_role.github_actions.arn
+}
+
+output "oidc_provider_arn" {
+  description = "ARN of the GitHub Actions OIDC provider"
+  value       = aws_iam_openid_connect_provider.github.arn
+}
