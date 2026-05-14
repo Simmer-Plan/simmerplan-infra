@@ -12,12 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-variable "sandbox_account_email" {
-  description = "Root email address for the sandbox AWS member account"
-  type        = string
+output "role_arn" {
+  description = "ARN of the GitHub Actions IAM role (use in workflow: role-to-assume)"
+  value       = module.oidc.role_arn
 }
 
-variable "prod_account_email" {
-  description = "Root email address for the prod AWS member account"
-  type        = string
+output "oidc_provider_arn" {
+  description = "ARN of the GitHub Actions OIDC provider"
+  value       = module.oidc.oidc_provider_arn
+}
+
+output "sandbox_account_id" {
+  description = "AWS account ID for the sandbox member account"
+  value       = module.organizations.sandbox_account_id
+}
+
+output "prod_account_id" {
+  description = "AWS account ID for the prod member account"
+  value       = module.organizations.prod_account_id
 }

@@ -12,4 +12,63 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# OIDC module (GitHub Actions IAM role) — implementation in SIM-25
+# GitHub Actions OIDC provider and deploy role for keyless AWS authentication.
+# The thumbprint is fetched dynamically so it stays current if GitHub rotates their cert.
+
+data "tls_certificate" "github_oidc" {
+  url = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
+}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.github_oidc.certificates[0].sha1_fingerprint]
+
+  tags = {
+    Name        = "github-actions-oidc"
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+data "aws_iam_policy_document" "github_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    # Scope to this repo only; wildcards allow any ref (branch, tag, PR)
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_org}/${var.github_repo}:*"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions" {
+  name               = var.role_name
+  assume_role_policy = data.aws_iam_policy_document.github_assume_role.json
+
+  tags = {
+    Name        = var.role_name
+    Environment = var.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+# Full admin access is required so Terraform can manage any AWS resource in the account.
+resource "aws_iam_role_policy_attachment" "github_actions_admin" {
+  role       = aws_iam_role.github_actions.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}

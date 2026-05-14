@@ -11,3 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+variable "github_org" {
+  description = "GitHub organisation that owns the repository"
+  type        = string
+}
+
+variable "github_repo" {
+  description = "GitHub repository name (without the org prefix)"
+  type        = string
+}
+
+variable "role_name" {
+  description = "Name of the IAM role assumed by GitHub Actions"
+  type        = string
+  default     = "TerraformDeployRole"
+}
+
+variable "environment" {
+  description = "Environment label applied to resource tags (management, sandbox, prod)"
+  type        = string
+}
