@@ -14,15 +14,20 @@
 
 output "function_arn" {
   description = "ARN of the Lambda function"
-  value       = ""
+  value       = aws_lambda_function.this.arn
 }
 
 output "function_name" {
   description = "Name of the Lambda function"
-  value       = ""
+  value       = aws_lambda_function.this.function_name
 }
 
 output "invoke_arn" {
   description = "Invocation ARN for use with API Gateway"
-  value       = ""
+  value       = aws_lambda_function.this.invoke_arn
+}
+
+output "role_name" {
+  description = "Name of the execution role (for attaching additional policies)"
+  value       = aws_iam_role.this.name
 }

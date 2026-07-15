@@ -12,4 +12,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Cognito module — implementation in SIM-25
+# Cognito module — user pool and SPA app client. Google federation and the
+# hosted UI domain are added by the auth implementation ticket (SIM-29).
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+resource "aws_cognito_user_pool" "this" {
+  name = var.pool_name
+
+  username_attributes      = ["email"]
+  auto_verified_attributes = ["email"]
+
+  password_policy {
+    minimum_length    = 12
+    require_lowercase = true
+    require_uppercase = true
+    require_numbers   = true
+    require_symbols   = false
+  }
+
+  account_recovery_setting {
+    recovery_mechanism {
+      name     = "verified_email"
+      priority = 1
+    }
+  }
+}
+
+resource "aws_cognito_user_pool_client" "this" {
+  name         = "${var.pool_name}-client"
+  user_pool_id = aws_cognito_user_pool.this.id
+
+  generate_secret               = false
+  prevent_user_existence_errors = "ENABLED"
+
+  explicit_auth_flows = [
+    "ALLOW_USER_SRP_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+  ]
+}

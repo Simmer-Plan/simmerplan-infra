@@ -11,3 +11,36 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+variable "bucket_id" {
+  description = "Name (ID) of the S3 origin bucket"
+  type        = string
+}
+
+variable "bucket_arn" {
+  description = "ARN of the S3 origin bucket (for the OAC bucket policy)"
+  type        = string
+}
+
+variable "bucket_regional_domain_name" {
+  description = "Regional domain name of the S3 origin bucket"
+  type        = string
+}
+
+variable "aliases" {
+  description = "Custom domain aliases. Requires acm_certificate_arn."
+  type        = list(string)
+  default     = []
+}
+
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN (must be in us-east-1). Null uses the default CloudFront certificate."
+  type        = string
+  default     = null
+}
+
+variable "price_class" {
+  description = "CloudFront price class"
+  type        = string
+  default     = "PriceClass_100"
+}

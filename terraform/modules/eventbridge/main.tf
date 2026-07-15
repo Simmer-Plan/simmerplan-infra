@@ -12,4 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# EventBridge module — implementation in SIM-25
+# EventBridge module — custom event bus for application events. Rules and
+# targets (expiry alerts, plan reminders) are added by Phase 4 tickets.
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+resource "aws_cloudwatch_event_bus" "this" {
+  name = var.bus_name
+}

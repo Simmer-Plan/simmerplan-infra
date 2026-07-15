@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Sandbox account — implementation in SIM-25
+# Sandbox account — all 12 resource modules wired for the sandbox environment
+# (SIM-33). The remaining two modules from the IaC plan (oidc, organizations)
+# are provisioned once in the management account and only referenced here.
+#
+# Custom-domain resources (ACM certificate, CloudFront aliases) are gated
+# behind enable_custom_domain because DNS validation cannot complete until the
+# zone's name servers are delegated from the simmerplan.com apex. First apply
+# with the flag off, delegate using the route53_name_servers output, then flip
+# the flag and re-apply.
 
 terraform {
   required_version = ">= 1.0"
@@ -20,6 +28,10 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
+    }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.0"
     }
   }
 }
@@ -32,4 +44,191 @@ provider "aws" {
   assume_role {
     role_arn = "arn:aws:iam::${var.account_id}:role/TerraformDeployRole"
   }
+
+  default_tags {
+    tags = {
+      Project     = "simmerplan"
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    }
+  }
+}
+
+# CloudFront only accepts ACM certificates issued in us-east-1.
+provider "aws" {
+  alias   = "us_east_1"
+  region  = "us-east-1"
+  profile = var.aws_profile
+  assume_role {
+    role_arn = "arn:aws:iam::${var.account_id}:role/TerraformDeployRole"
+  }
+
+  default_tags {
+    tags = {
+      Project     = "simmerplan"
+      Environment = var.environment
+      ManagedBy   = "terraform"
+    }
+  }
+}
+
+# ── Data layer ────────────────────────────────────────────────────────────────
+
+module "dynamodb" {
+  source = "../../modules/dynamodb"
+
+  table_name = "simmerplan-${var.environment}"
+  hash_key   = "PK"
+  range_key  = "SK"
+
+  global_secondary_indexes = [
+    {
+      name      = "GSI1"
+      hash_key  = "GSI1PK"
+      range_key = "GSI1SK"
+    },
+    {
+      name      = "GSI2"
+      hash_key  = "GSI2PK"
+      range_key = "GSI2SK"
+    },
+  ]
+
+  # Sandbox: disposable data — no PITR, no deletion protection (SIM-35 table).
+  point_in_time_recovery = false
+  deletion_protection    = false
+}
+
+module "secrets" {
+  source = "../../modules/secrets"
+
+  secrets = {
+    "simmerplan-google-oauth-${var.environment}" = "Google OAuth client credentials for Cognito federation (SIM-29)"
+  }
+
+  # Sandbox: allow immediate re-creation of deleted secrets.
+  recovery_window_in_days = 0
+}
+
+# ── Compute and API ───────────────────────────────────────────────────────────
+
+module "bedrock" {
+  source = "../../modules/bedrock"
+
+  policy_name = "simmerplan-bedrock-invoke-${var.environment}"
+}
+
+data "aws_iam_policy_document" "api_lambda" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DeleteItem",
+      "dynamodb:Query",
+      "dynamodb:BatchGetItem",
+      "dynamodb:BatchWriteItem",
+    ]
+    resources = [
+      module.dynamodb.table_arn,
+      "${module.dynamodb.table_arn}/index/*",
+    ]
+  }
+}
+
+module "lambda_api" {
+  source = "../../modules/lambda"
+
+  function_name = "simmerplan-api-${var.environment}"
+  handler       = "index.handler"
+
+  environment_variables = {
+    DYNAMODB_TABLE = module.dynamodb.table_name
+    ENVIRONMENT    = var.environment
+  }
+
+  attach_policy      = true
+  attach_policy_json = data.aws_iam_policy_document.api_lambda.json
+}
+
+resource "aws_iam_role_policy_attachment" "api_bedrock" {
+  role       = module.lambda_api.role_name
+  policy_arn = module.bedrock.policy_arn
+}
+
+module "api_gateway" {
+  source = "../../modules/api_gateway"
+
+  api_name   = "simmerplan-api-${var.environment}"
+  stage_name = "$default"
+
+  lambda_integrations = {
+    "ANY /{proxy+}" = module.lambda_api.invoke_arn
+  }
+}
+
+# ── Static delivery ───────────────────────────────────────────────────────────
+
+module "s3_static" {
+  source = "../../modules/s3"
+
+  bucket_name = "simmerplan-static-${var.environment}"
+  # Sandbox: allow teardown without emptying the bucket first.
+  force_destroy = true
+}
+
+module "route53" {
+  source = "../../modules/route53"
+
+  domain_name              = var.domain_name
+  create_alias_records     = true
+  alias_target_domain_name = module.cloudfront.domain_name
+  alias_target_zone_id     = module.cloudfront.hosted_zone_id
+}
+
+module "acm" {
+  source = "../../modules/acm"
+  count  = var.enable_custom_domain ? 1 : 0
+
+  providers = { aws = aws.us_east_1 }
+
+  domain_name = var.domain_name
+  zone_id     = module.route53.zone_id
+}
+
+module "cloudfront" {
+  source = "../../modules/cloudfront"
+
+  bucket_id                   = module.s3_static.bucket_id
+  bucket_arn                  = module.s3_static.bucket_arn
+  bucket_regional_domain_name = module.s3_static.bucket_regional_domain_name
+
+  aliases             = var.enable_custom_domain ? [var.domain_name] : []
+  acm_certificate_arn = var.enable_custom_domain ? module.acm[0].certificate_arn : null
+}
+
+# ── Eventing and observability ────────────────────────────────────────────────
+
+module "eventbridge" {
+  source = "../../modules/eventbridge"
+
+  bus_name = "simmerplan-events-${var.environment}"
+}
+
+module "cognito" {
+  source = "../../modules/cognito"
+
+  pool_name = "simmerplan-users-${var.environment}"
+}
+
+module "cloudwatch" {
+  source = "../../modules/cloudwatch"
+
+  sns_topic_name       = "simmerplan-alerts-${var.environment}"
+  alarm_email          = var.alarm_email
+  lambda_function_name = module.lambda_api.function_name
+  api_name             = "simmerplan-api-${var.environment}"
+  api_id               = module.api_gateway.api_id
+  dynamodb_table_name  = module.dynamodb.table_name
 }

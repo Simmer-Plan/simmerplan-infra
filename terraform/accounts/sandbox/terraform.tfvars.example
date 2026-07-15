@@ -7,3 +7,12 @@ account_id  = "222222222222"  # sandbox account ID
 # credential_process). A profile using the `aws login` session flow will NOT work.
 # See CLAUDE.md → Authentication (local runs).
 # aws_profile = "simmerplan-management-tf"
+
+# Custom domain. Keep enable_custom_domain = false for the first apply, then
+# delegate the route53_name_servers output at the simmerplan.com apex, flip to
+# true, and re-apply. Applying with an undelegated zone hangs on ACM validation.
+# domain_name          = "sandbox.simmerplan.com"
+# enable_custom_domain = false
+
+# Email for CloudWatch alarm notifications (subscription requires manual confirm).
+# alarm_email = "you@example.com"

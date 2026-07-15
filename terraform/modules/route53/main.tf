@@ -12,4 +12,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Route 53 module — implementation in SIM-25
+# Route 53 module — hosted zone for the environment domain, with optional
+# A/AAAA alias records pointing at a CloudFront distribution.
+#
+# Delegation is out of band: after the zone is created, its name servers must
+# be registered at the parent (registrar for the apex; the apex zone for
+# environment subdomains). The zone resolves nothing until then.
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+resource "aws_route53_zone" "this" {
+  name = var.domain_name
+}
+
+resource "aws_route53_record" "alias_a" {
+  count = var.create_alias_records ? 1 : 0
+
+  zone_id = aws_route53_zone.this.zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = var.alias_target_domain_name
+    zone_id                = var.alias_target_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "alias_aaaa" {
+  count = var.create_alias_records ? 1 : 0
+
+  zone_id = aws_route53_zone.this.zone_id
+  name    = var.domain_name
+  type    = "AAAA"
+
+  alias {
+    name                   = var.alias_target_domain_name
+    zone_id                = var.alias_target_zone_id
+    evaluate_target_health = false
+  }
+}

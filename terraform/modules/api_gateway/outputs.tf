@@ -14,10 +14,10 @@
 
 output "api_id" {
   description = "ID of the API Gateway"
-  value       = ""
+  value       = aws_apigatewayv2_api.this.id
 }
 
 output "api_endpoint" {
   description = "Default endpoint URL of the API Gateway"
-  value       = ""
+  value       = aws_apigatewayv2_api.this.api_endpoint
 }

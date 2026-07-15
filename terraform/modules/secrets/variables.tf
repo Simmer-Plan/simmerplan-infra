@@ -11,3 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+variable "secrets" {
+  description = "Map of secret name to description. Values are set out of band."
+  type        = map(string)
+  default     = {}
+}
+
+variable "recovery_window_in_days" {
+  description = "Days a deleted secret is recoverable (0 = immediate, sandbox only)"
+  type        = number
+  default     = 7
+}

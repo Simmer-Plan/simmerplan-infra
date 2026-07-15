@@ -11,3 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+output "bus_name" {
+  description = "Name of the event bus"
+  value       = aws_cloudwatch_event_bus.this.name
+}
+
+output "bus_arn" {
+  description = "ARN of the event bus"
+  value       = aws_cloudwatch_event_bus.this.arn
+}

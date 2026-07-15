@@ -11,3 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+output "alerts_topic_arn" {
+  description = "ARN of the SNS alert topic"
+  value       = aws_sns_topic.alerts.arn
+}

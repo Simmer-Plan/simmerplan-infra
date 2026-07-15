@@ -12,4 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Secrets Manager module — implementation in SIM-25
+# Secrets module — Secrets Manager containers only. Values are set out of
+# band (console or rotate_secrets.yml) so no secret material passes through
+# Terraform state.
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+# Default AWS-managed KMS key; a CMK adds cost without a compliance driver.
+#tfsec:ignore:aws-ssm-secret-use-customer-key
+resource "aws_secretsmanager_secret" "this" {
+  for_each = var.secrets
+
+  name                    = each.key
+  description             = each.value
+  recovery_window_in_days = var.recovery_window_in_days
+}
