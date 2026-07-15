@@ -11,9 +11,62 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
+# Deploy static assets to S3/CloudFront (SIM-34). Syncs the app build output
+# to the environment bucket and invalidates the distribution. Skips cleanly
+# when no build output exists yet (the app repo has no frontend build until
+# Phase 2).
+#
+# Required extra vars: environment (sandbox|prod)
+# Optional extra vars: app_repo_path, static_dir
+
 - name: Deploy static assets to S3/CloudFront
   hosts: localhost
   gather_facts: false
-  # Stub — implementation in SIM-25
-  tasks: []
+
+  vars:
+    aws_region: ca-central-1
+    app_repo_path: "{{ playbook_dir }}/../../../simmerplan-app"
+    static_dir: "{{ app_repo_path }}/dist"
+
+  tasks:
+    - name: Validate environment
+      ansible.builtin.assert:
+        that:
+          - environment is defined
+          - environment in ['sandbox', 'prod']
+        fail_msg: "Pass -e environment=sandbox or -e environment=prod"
+
+    - name: Check for static build output
+      ansible.builtin.stat:
+        path: "{{ static_dir }}"
+      register: static_build
+
+    - name: Skip when there is nothing to deploy
+      ansible.builtin.meta: end_play
+      when: not static_build.stat.exists
+
+    - name: Sync build output to the static bucket
+      ansible.builtin.command: >-
+        aws s3 sync {{ static_dir }}
+        s3://simmerplan-static-{{ environment }}
+        --region {{ aws_region }} --delete
+      changed_when: true
+
+    - name: Find the CloudFront distribution for this environment
+      ansible.builtin.command: >-
+        aws cloudfront list-distributions --query
+        "DistributionList.Items[?starts_with(Origins.Items[0].DomainName,
+        'simmerplan-static-{{ environment }}.')].Id | [0]"
+        --output text
+      register: distribution_id
+      changed_when: false
+      failed_when: distribution_id.stdout in ['', 'None']
+
+    - name: Invalidate the distribution cache
+      ansible.builtin.command: >-
+        aws cloudfront create-invalidation
+        --distribution-id {{ distribution_id.stdout }}
+        --paths "/*"
+      changed_when: true
