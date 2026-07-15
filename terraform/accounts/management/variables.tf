@@ -18,6 +18,12 @@ variable "aws_region" {
   default     = "ca-central-1"
 }
 
+variable "aws_profile" {
+  description = "Named AWS profile for local runs. Leave unset in CI, where GitHub Actions authenticates via OIDC."
+  type        = string
+  default     = null
+}
+
 variable "account_id" {
   description = "AWS account ID for the management account"
   type        = string

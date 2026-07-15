@@ -31,7 +31,7 @@ terraform {
 
 provider "aws" {
   region  = var.aws_region
-  profile = "simmerplan-management-tf"
+  profile = var.aws_profile
 }
 
 module "organizations" {
@@ -54,7 +54,7 @@ module "oidc" {
 provider "aws" {
   alias   = "sandbox"
   region  = var.aws_region
-  profile = "simmerplan-management-tf"
+  profile = var.aws_profile
   assume_role {
     role_arn = "arn:aws:iam::${var.sandbox_account_id}:role/OrganizationAccountAccessRole"
   }
@@ -63,7 +63,7 @@ provider "aws" {
 provider "aws" {
   alias   = "prod"
   region  = var.aws_region
-  profile = "simmerplan-management-tf"
+  profile = var.aws_profile
   assume_role {
     role_arn = "arn:aws:iam::${var.prod_account_id}:role/OrganizationAccountAccessRole"
   }

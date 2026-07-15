@@ -1,6 +1,13 @@
 aws_region  = "ca-central-1"
 account_id  = "111111111111"  # management account ID
 
+# Optional. Local runs only — omit in CI, where GitHub Actions authenticates via OIDC.
+# The profile must be readable by the Terraform AWS provider (static keys, SSO, or
+# credential_process). A profile using the `aws login` session flow will NOT work;
+# either omit this and export credentials into the environment, or point it at a
+# credential_process shim profile.
+# aws_profile = "simmerplan-management-tf"
+
 github_org  = "Simmer-Plan"
 github_repo = "simmerplan-infra"
 
