@@ -12,21 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Verify node is available
-  ansible.builtin.command: node --version
-  changed_when: false
-
-- name: Verify scaffold script exists
-  ansible.builtin.stat:
-    path: "{{ app_repo_path }}/scripts/scaffold-db.ts"
-  register: scaffold_script
-  failed_when: not scaffold_script.stat.exists
-
-- name: Scaffold DynamoDB table
-  ansible.builtin.command: npx tsx scripts/scaffold-db.ts
-  args:
-    chdir: "{{ app_repo_path }}"
-  environment:
-    DYNAMODB_TABLE: "simmerplan-{{ environment }}"
-    AWS_REGION: "ca-central-1"
-    ENVIRONMENT: "{{ environment }}"
+# Resolves to the sibling simmerplan-app repo for local runs.
+# Override via --extra-vars in CI (e.g. app_repo_path=$GITHUB_WORKSPACE/simmerplan-app).
+app_repo_path: "{{ playbook_dir }}/../../../simmerplan-app"
