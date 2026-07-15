@@ -16,3 +16,16 @@ variable "pool_name" {
   description = "Name of the Cognito user pool"
   type        = string
 }
+
+variable "custom_auth_triggers" {
+  description = "CUSTOM_AUTH trigger lambdas for Google-federated sign-in (SIM-37). Null skips trigger wiring."
+  type = object({
+    define_arn           = string
+    define_function_name = string
+    create_arn           = string
+    create_function_name = string
+    verify_arn           = string
+    verify_function_name = string
+  })
+  default = null
+}

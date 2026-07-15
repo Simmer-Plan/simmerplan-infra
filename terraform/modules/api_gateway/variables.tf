@@ -22,10 +22,22 @@ variable "stage_name" {
   type        = string
 }
 
-variable "lambda_integrations" {
-  description = "Map of route keys to Lambda invoke ARNs"
-  type        = map(string)
-  default     = {}
+variable "routes" {
+  description = "Map of route keys to { invoke_arn, authorized }. Authorized routes go behind the Lambda authorizer."
+  type = map(object({
+    invoke_arn = string
+    authorized = optional(bool, false)
+  }))
+  default = {}
+}
+
+variable "authorizer" {
+  description = "Lambda authorizer for authorized routes. Null when every route is public."
+  type = object({
+    invoke_arn    = string
+    function_name = string
+  })
+  default = null
 }
 
 variable "log_retention_days" {
