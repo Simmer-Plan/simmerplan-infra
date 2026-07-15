@@ -74,6 +74,8 @@ provider "aws" {
 
 # ── Data layer ────────────────────────────────────────────────────────────────
 
+# Sandbox runs without PITR by design (SIM-35 environment matrix).
+#tfsec:ignore:aws-dynamodb-enable-recovery
 module "dynamodb" {
   source = "../../modules/dynamodb"
 
@@ -95,7 +97,6 @@ module "dynamodb" {
   ]
 
   # Sandbox: disposable data — no PITR, no deletion protection (SIM-35 table).
-  #tfsec:ignore:aws-dynamodb-enable-recovery
   point_in_time_recovery = false
   deletion_protection    = false
 }
