@@ -99,13 +99,21 @@ module "dynamodb" {
   # Sandbox: disposable data — no PITR, no deletion protection (SIM-35 table).
   point_in_time_recovery = false
   deletion_protection    = false
+
+  # INVITE records carry TTL = expiry + 7 days for auto-cleanup (SIM-6/SIM-37).
+  ttl_attribute = "TTL"
 }
 
 module "secrets" {
   source = "../../modules/secrets"
 
+  # Path-style names are the contract with simmerplan-app (its lib/secrets.ts
+  # resolves simmerplan/<env>/<name>). Values are set out of band post-apply
+  # via rotate_secrets.yml — never through Terraform state.
   secrets = {
-    "simmerplan-google-oauth-${var.environment}" = "Google OAuth client credentials for Cognito federation (SIM-29)"
+    "simmerplan/${var.environment}/invite-signing-key"         = "HS256 key for household invite JWTs (SIM-29)"
+    "simmerplan/${var.environment}/google-oauth-client-id"     = "Google OAuth web client ID for Cognito federation (SIM-29)"
+    "simmerplan/${var.environment}/google-oauth-client-secret" = "Google OAuth web client secret (SIM-29)"
   }
 
   # Sandbox: allow immediate re-creation of deleted secrets.
@@ -162,14 +170,151 @@ resource "aws_iam_role_policy_attachment" "api_bedrock" {
   policy_arn = module.bedrock.policy_arn
 }
 
+# ── Auth stack (SIM-37, consumed by simmerplan-app SIM-29) ────────────────────
+
+locals {
+  auth_secret_arns = values(module.secrets.secret_arns)
+  cognito_env = {
+    ENVIRONMENT          = var.environment
+    COGNITO_USER_POOL_ID = module.cognito.user_pool_id
+    COGNITO_CLIENT_ID    = module.cognito.client_id
+  }
+}
+
+data "aws_iam_policy_document" "secrets_read" {
+  statement {
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = local.auth_secret_arns
+  }
+}
+
+data "aws_iam_policy_document" "auth_lambda" {
+  source_policy_documents = [data.aws_iam_policy_document.secrets_read.json]
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:Query",
+      "dynamodb:BatchGetItem",
+    ]
+    resources = [module.dynamodb.table_arn]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "cognito-idp:AdminGetUser",
+      "cognito-idp:AdminCreateUser",
+      "cognito-idp:AdminSetUserPassword",
+      "cognito-idp:AdminUpdateUserAttributes",
+    ]
+    resources = [module.cognito.user_pool_arn]
+  }
+}
+
+# Validates Google idTokens during the CUSTOM_AUTH exchange.
+data "aws_iam_policy_document" "verify_trigger" {
+  source_policy_documents = [data.aws_iam_policy_document.secrets_read.json]
+}
+
+module "lambda_authorizer" {
+  source = "../../modules/lambda"
+
+  function_name = "simmerplan-authorizer-${var.environment}"
+  handler       = "auth-authorizer.handler"
+
+  # JWKS verification only — no AWS API access required.
+  environment_variables = local.cognito_env
+}
+
+module "lambda_auth" {
+  source = "../../modules/lambda"
+
+  function_name = "simmerplan-auth-${var.environment}"
+  handler       = "auth-handler.handler"
+
+  environment_variables = merge(local.cognito_env, {
+    DYNAMODB_TABLE = module.dynamodb.table_name
+  })
+
+  attach_policy      = true
+  attach_policy_json = data.aws_iam_policy_document.auth_lambda.json
+}
+
+module "lambda_household" {
+  source = "../../modules/lambda"
+
+  function_name = "simmerplan-household-${var.environment}"
+  handler       = "household-handler.handler"
+
+  environment_variables = merge(local.cognito_env, {
+    DYNAMODB_TABLE = module.dynamodb.table_name
+  })
+
+  attach_policy      = true
+  attach_policy_json = data.aws_iam_policy_document.auth_lambda.json
+}
+
+module "lambda_cognito_define" {
+  source = "../../modules/lambda"
+
+  function_name = "simmerplan-cognito-define-${var.environment}"
+  handler       = "cognito-define-auth-challenge.handler"
+}
+
+module "lambda_cognito_create" {
+  source = "../../modules/lambda"
+
+  function_name = "simmerplan-cognito-create-${var.environment}"
+  handler       = "cognito-create-auth-challenge.handler"
+}
+
+module "lambda_cognito_verify" {
+  source = "../../modules/lambda"
+
+  function_name = "simmerplan-cognito-verify-${var.environment}"
+  handler       = "cognito-verify-auth-challenge.handler"
+
+  environment_variables = {
+    ENVIRONMENT = var.environment
+  }
+
+  attach_policy      = true
+  attach_policy_json = data.aws_iam_policy_document.verify_trigger.json
+}
+
 module "api_gateway" {
   source = "../../modules/api_gateway"
 
   api_name   = "simmerplan-api-${var.environment}"
   stage_name = "$default"
 
-  lambda_integrations = {
-    "ANY /{proxy+}" = module.lambda_api.invoke_arn
+  # /auth is where tokens come from — everything else requires one.
+  routes = {
+    "ANY /auth/{proxy+}" = {
+      invoke_arn = module.lambda_auth.invoke_arn
+    }
+    "ANY /household/{proxy+}" = {
+      invoke_arn = module.lambda_household.invoke_arn
+      authorized = true
+    }
+    "GET /household" = {
+      invoke_arn = module.lambda_household.invoke_arn
+      authorized = true
+    }
+    "ANY /{proxy+}" = {
+      invoke_arn = module.lambda_api.invoke_arn
+      authorized = true
+    }
+  }
+
+  authorizer = {
+    invoke_arn    = module.lambda_authorizer.invoke_arn
+    function_name = module.lambda_authorizer.function_name
   }
 }
 
@@ -225,6 +370,15 @@ module "cognito" {
   source = "../../modules/cognito"
 
   pool_name = "simmerplan-users-${var.environment}"
+
+  custom_auth_triggers = {
+    define_arn           = module.lambda_cognito_define.function_arn
+    define_function_name = module.lambda_cognito_define.function_name
+    create_arn           = module.lambda_cognito_create.function_arn
+    create_function_name = module.lambda_cognito_create.function_name
+    verify_arn           = module.lambda_cognito_verify.function_arn
+    verify_function_name = module.lambda_cognito_verify.function_name
+  }
 }
 
 module "cloudwatch" {

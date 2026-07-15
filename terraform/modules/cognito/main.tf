@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Cognito module — user pool and SPA app client. Google federation and the
-# hosted UI domain are added by the auth implementation ticket (SIM-29).
+# Cognito module — user pool and SPA app client. Sign-in is Google-federated
+# through the CUSTOM_AUTH flow (SIM-37): the trigger lambdas validate the
+# Google idToken, and custom:householdId carries household membership in every
+# ID token so the API authorizer never needs a database lookup (SIM-8).
 
 terraform {
   required_providers {
@@ -44,6 +46,44 @@ resource "aws_cognito_user_pool" "this" {
       priority = 1
     }
   }
+
+  # Household membership claim — extracted from verified ID tokens by the
+  # Lambda authorizer (SIM-8 approved decision).
+  schema {
+    name                = "householdId"
+    attribute_data_type = "String"
+    mutable             = true
+    required            = false
+
+    string_attribute_constraints {
+      min_length = 0
+      max_length = 36
+    }
+  }
+
+  dynamic "lambda_config" {
+    for_each = var.custom_auth_triggers == null ? [] : [var.custom_auth_triggers]
+    content {
+      define_auth_challenge          = lambda_config.value.define_arn
+      create_auth_challenge          = lambda_config.value.create_arn
+      verify_auth_challenge_response = lambda_config.value.verify_arn
+    }
+  }
+}
+
+# Cognito must be allowed to invoke each trigger.
+resource "aws_lambda_permission" "triggers" {
+  for_each = var.custom_auth_triggers == null ? {} : {
+    define = var.custom_auth_triggers.define_function_name
+    create = var.custom_auth_triggers.create_function_name
+    verify = var.custom_auth_triggers.verify_function_name
+  }
+
+  statement_id  = "AllowCognitoInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = each.value
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.this.arn
 }
 
 resource "aws_cognito_user_pool_client" "this" {
@@ -54,7 +94,19 @@ resource "aws_cognito_user_pool_client" "this" {
   prevent_user_existence_errors = "ENABLED"
 
   explicit_auth_flows = [
+    "ALLOW_CUSTOM_AUTH",
     "ALLOW_USER_SRP_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
   ]
+
+  # Auth Planning doc (SIM-8): access/ID 1 hour, refresh 30 days.
+  access_token_validity  = 60
+  id_token_validity      = 60
+  refresh_token_validity = 30
+
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
 }

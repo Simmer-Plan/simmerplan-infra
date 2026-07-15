@@ -51,3 +51,9 @@ variable "deletion_protection" {
   type        = bool
   default     = false
 }
+
+variable "ttl_attribute" {
+  description = "Attribute holding the item expiry as Unix seconds (e.g. TTL on INVITE records). Null disables TTL."
+  type        = string
+  default     = null
+}
