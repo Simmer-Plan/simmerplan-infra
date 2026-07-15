@@ -34,3 +34,21 @@ variable "account_id" {
   description = "AWS account ID for the prod account"
   type        = string
 }
+
+variable "domain_name" {
+  description = "Domain served by this environment (apex)"
+  type        = string
+  default     = "simmerplan.com"
+}
+
+variable "enable_custom_domain" {
+  description = "Attach the custom domain (ACM certificate + CloudFront aliases). Leave false until the zone's name servers are set at the domain registrar, or the first apply will hang on certificate validation."
+  type        = bool
+  default     = false
+}
+
+variable "alarm_email" {
+  description = "Email subscribed to CloudWatch alerts. Null skips the subscription."
+  type        = string
+  default     = null
+}
