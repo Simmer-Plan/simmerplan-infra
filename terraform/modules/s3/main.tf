@@ -41,6 +41,9 @@ resource "aws_s3_bucket_versioning" "this" {
   }
 }
 
+# SSE-S3 rather than a customer-managed CMK — no compliance driver for
+# key management overhead on public static assets.
+#tfsec:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
   bucket = aws_s3_bucket.this.id
 
