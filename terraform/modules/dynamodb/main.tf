@@ -69,6 +69,14 @@ resource "aws_dynamodb_table" "this" {
     enabled = var.point_in_time_recovery
   }
 
+  dynamic "ttl" {
+    for_each = var.ttl_attribute == null ? [] : [var.ttl_attribute]
+    content {
+      attribute_name = ttl.value
+      enabled        = true
+    }
+  }
+
   server_side_encryption {
     enabled = true
   }
