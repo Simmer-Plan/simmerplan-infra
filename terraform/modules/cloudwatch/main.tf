@@ -25,6 +25,9 @@ terraform {
   }
 }
 
+# Encrypted with the AWS-managed SNS key; alarm notifications carry no
+# sensitive payload that would justify a CMK.
+#tfsec:ignore:aws-sns-topic-encryption-use-cmk
 resource "aws_sns_topic" "alerts" {
   name              = var.sns_topic_name
   kms_master_key_id = "alias/aws/sns"

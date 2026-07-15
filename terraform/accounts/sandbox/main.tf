@@ -130,6 +130,9 @@ data "aws_iam_policy_document" "api_lambda" {
       "dynamodb:BatchGetItem",
       "dynamodb:BatchWriteItem",
     ]
+    # The /index/* wildcard is scoped to this one table — it is the only way
+    # to grant query access to its GSIs.
+    #tfsec:ignore:aws-iam-no-policy-wildcards
     resources = [
       module.dynamodb.table_arn,
       "${module.dynamodb.table_arn}/index/*",
