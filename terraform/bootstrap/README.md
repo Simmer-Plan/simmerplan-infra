@@ -7,6 +7,9 @@ files (`use_lockfile = true`) — no DynamoDB table required.
 ## Prerequisites
 
 - AWS CLI authenticated to the management account
+- A profile the **Terraform AWS provider** can read — see
+  [Authentication](../../CLAUDE.md#authentication-local-runs). A profile using the
+  `aws login` session flow will not work.
 - Terraform >= 1.0
 
 ## Steps
@@ -28,9 +31,19 @@ files (`use_lockfile = true`) — no DynamoDB table required.
    (`simmerplan-terraform-state-<account-id>`), so no bucket name variable is needed.
 
 3. Note the `state_bucket_name` output — use it as a `-backend-config` argument
-   when initializing the sandbox and prod workspaces. Run bootstrap once per
-   sub-account (sandbox, then prod) — the management account uses local state
-   only and is never bootstrapped.
+   when initializing every other workspace.
+
+Bootstrap runs **once, against the management account only**. It creates a single
+bucket that holds the state for all three workspaces, separated by key:
+
+| Workspace | State key |
+|---|---|
+| `accounts/management` | `management/terraform.tfstate` |
+| `accounts/sandbox` | `sandbox/terraform.tfstate` |
+| `accounts/prod` | `prod/terraform.tfstate` |
+
+Bootstrap itself keeps local state, since the bucket cannot store the state that
+creates it.
 
 ## After Bootstrap
 
@@ -41,7 +54,13 @@ cd ../accounts/sandbox
 terraform init \
   -backend-config="bucket=<state_bucket_name output>" \
   -backend-config="region=ca-central-1" \
-  -backend-config="use_lockfile=true"
+  -backend-config="use_lockfile=true" \
+  -backend-config="profile=<terraform-readable profile>"
 ```
 
-Repeat for prod.
+Repeat for prod and management, changing only the directory.
+
+Omit the `profile` line in CI: GitHub Actions authenticates via OIDC and has no
+named profile. The S3 backend does **not** read the `aws_profile` variable — it is
+configured entirely through `-backend-config`, which is why the profile is passed
+here rather than committed to `backend.tf`.

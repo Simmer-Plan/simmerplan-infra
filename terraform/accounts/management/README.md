@@ -21,7 +21,10 @@ that Organizations creates here.
 
 - Bootstrap has been run and its S3 bucket name output is available —
   see `terraform/bootstrap/README.md`
-- AWS CLI authenticated to the management account (`simmerplan-management` profile)
+- AWS CLI authenticated to the management account
+- A profile the **Terraform AWS provider** can read — see
+  [Authentication](../../../CLAUDE.md#authentication-local-runs). A profile using the
+  `aws login` session flow will not work.
 - Terraform >= 1.0
 
 ## Steps
@@ -37,6 +40,7 @@ Edit `terraform.tfvars` and fill in real values:
 | Variable | Description |
 |---|---|
 | `account_id` | Management AWS account ID (12 digits) |
+| `aws_profile` | Optional. Named profile for local runs; leave unset in CI (OIDC) |
 | `github_org` | GitHub organisation name (e.g. `Simmer-Plan`) |
 | `github_repo` | Repository name without the org prefix (e.g. `simmerplan-infra`) |
 | `sandbox_account_email` | Unique root email for the sandbox member account |
@@ -48,14 +52,19 @@ Edit `terraform.tfvars` and fill in real values:
 
 ### 2. Initialise the backend
 
-Use the bucket and table names from the bootstrap outputs:
+Use the bucket name from the bootstrap outputs:
 
 ```bash
 terraform init \
   -backend-config="bucket=<state-bucket>" \
   -backend-config="region=ca-central-1" \
-  -backend-config="use_lockfile=true"
+  -backend-config="use_lockfile=true" \
+  -backend-config="profile=<terraform-readable profile>"
 ```
+
+The S3 backend does not read the `aws_profile` variable — it is configured only
+through `-backend-config`. Omit the `profile` line in CI, where GitHub Actions
+authenticates via OIDC.
 
 ### 3. Import existing resources (if applicable)
 
@@ -105,12 +114,34 @@ Account creation can take 1–2 minutes per account. Terraform will wait.
 
 ### 6. Validate
 
-Confirm the following in the AWS console (management account):
+The strongest check is a second `terraform plan`: `No changes.` means the configuration
+and the live account agree.
+
+To verify without the console (management account):
+
+```bash
+# OIDC provider exists
+aws iam list-open-id-connect-providers
+
+# Deploy role exists and its trust is scoped to this repo
+aws iam get-role --role-name TerraformDeployRole \
+  --query 'Role.AssumeRolePolicyDocument.Statement[0]'
+
+# Member accounts are ACTIVE
+aws organizations list-accounts --query 'Accounts[].{Id:Id,Name:Name,Status:Status}'
+```
+
+Or confirm the equivalent in the console:
 
 - **IAM → Identity providers** — `token.actions.githubusercontent.com` is listed
 - **IAM → Roles → TerraformDeployRole** — exists; trust policy shows the correct GitHub repo
 - **AWS Organizations** — `sandbox` and `prod` OUs are visible under the root; member accounts
   are assigned to their respective OUs
+
+> **Note:** `data.tls_certificate` fetches GitHub's OIDC thumbprint live, so a plan will show
+> `thumbprint_list` drift whenever GitHub rotates their certificate. AWS has not validated
+> thumbprints for GitHub's OIDC provider since 2023, so this is cosmetic — but it does mean
+> CI plans will not stay clean on their own.
 
 ## Outputs
 
