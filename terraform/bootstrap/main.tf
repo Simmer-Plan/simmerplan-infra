@@ -42,9 +42,9 @@ locals {
   state_bucket_name = "simmerplan-terraform-state-${data.aws_caller_identity.current.account_id}"
 
   tags = {
-    Project     = "simmerplan"
-    ManagedBy   = "terraform"
-    Owner       = "dave-leblanc"
+    Project   = "simmerplan"
+    ManagedBy = "terraform"
+    Owner     = "dave-leblanc"
   }
 }
 
