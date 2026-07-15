@@ -24,9 +24,11 @@ terraform {
   }
 }
 
+# Credentials come from the management account, which then assumes TerraformDeployRole
+# in this account. Locally that is var.aws_profile; in CI it is the GitHub Actions role.
 provider "aws" {
   region  = var.aws_region
-  profile = "simmerplan-management"
+  profile = var.aws_profile
   assume_role {
     role_arn = "arn:aws:iam::${var.account_id}:role/TerraformDeployRole"
   }

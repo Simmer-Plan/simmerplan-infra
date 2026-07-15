@@ -24,6 +24,12 @@ variable "environment" {
   default     = "prod"
 }
 
+variable "aws_profile" {
+  description = "Named AWS profile for local runs. Leave unset in CI, where GitHub Actions authenticates via OIDC. The profile must be readable by the Terraform AWS provider — see CLAUDE.md."
+  type        = string
+  default     = null
+}
+
 variable "account_id" {
   description = "AWS account ID for the prod account"
   type        = string
