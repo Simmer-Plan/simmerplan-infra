@@ -1,3 +1,9 @@
 aws_region  = "ca-central-1"
 environment = "prod"
 account_id  = "333333333333"  # prod account ID
+
+# Optional. Local runs only — omit in CI, where GitHub Actions authenticates via OIDC.
+# Must be a profile the Terraform AWS provider can read (static keys, SSO, or
+# credential_process). A profile using the `aws login` session flow will NOT work.
+# See CLAUDE.md → Authentication (local runs).
+# aws_profile = "simmerplan-management-tf"
