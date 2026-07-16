@@ -15,7 +15,7 @@
 - name: Seed DynamoDB with initial data
   hosts: localhost
   gather_facts: false
-  # Required extra vars: environment (sandbox|prod)
+  # Required extra vars: env (sandbox|prod)  [not 'environment' — reserved keyword]
   # Optional extra vars: app_repo_path (defaults to sibling simmerplan-app dir)
   roles:
     - dynamodb
