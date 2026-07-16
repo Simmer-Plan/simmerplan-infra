@@ -35,7 +35,7 @@ variable "range_key" {
 }
 
 variable "global_secondary_indexes" {
-  description = "List of GSI configurations"
+  description = "List of GSI configurations ({name, hash_key, range_key?, projection_type?}). All key attributes are assumed to be strings."
   type        = any
   default     = []
 }
@@ -44,4 +44,16 @@ variable "point_in_time_recovery" {
   description = "Enable point-in-time recovery"
   type        = bool
   default     = true
+}
+
+variable "deletion_protection" {
+  description = "Enable deletion protection (required for prod — SIM-35)"
+  type        = bool
+  default     = false
+}
+
+variable "ttl_attribute" {
+  description = "Attribute holding the item expiry as Unix seconds (e.g. TTL on INVITE records). Null disables TTL."
+  type        = string
+  default     = null
 }

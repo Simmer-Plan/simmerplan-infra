@@ -11,3 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+output "zone_id" {
+  description = "ID of the hosted zone"
+  value       = aws_route53_zone.this.zone_id
+}
+
+output "name_servers" {
+  description = "Zone name servers — register these at the parent to delegate"
+  value       = aws_route53_zone.this.name_servers
+}

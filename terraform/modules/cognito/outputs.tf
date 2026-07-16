@@ -11,3 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+output "user_pool_id" {
+  description = "ID of the user pool"
+  value       = aws_cognito_user_pool.this.id
+}
+
+output "user_pool_arn" {
+  description = "ARN of the user pool"
+  value       = aws_cognito_user_pool.this.arn
+}
+
+output "client_id" {
+  description = "ID of the app client"
+  value       = aws_cognito_user_pool_client.this.id
+}

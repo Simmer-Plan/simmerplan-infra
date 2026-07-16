@@ -11,3 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+variable "bucket_name" {
+  description = "Name of the S3 bucket (globally unique)"
+  type        = string
+}
+
+variable "versioning" {
+  description = "Enable object versioning"
+  type        = bool
+  default     = true
+}
+
+variable "force_destroy" {
+  description = "Allow bucket deletion with objects present (sandbox only)"
+  type        = bool
+  default     = false
+}

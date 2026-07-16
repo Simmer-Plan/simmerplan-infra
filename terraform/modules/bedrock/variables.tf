@@ -11,3 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+variable "policy_name" {
+  description = "Name of the IAM policy"
+  type        = string
+}
+
+variable "allowed_model_prefixes" {
+  description = "Foundation model ID prefixes the policy may invoke"
+  type        = list(string)
+  default     = ["anthropic."]
+}

@@ -45,3 +45,21 @@ variable "memory_size" {
   type        = number
   default     = 256
 }
+
+variable "attach_policy" {
+  description = "Attach the inline policy from attach_policy_json (static flag — the JSON itself may be unknown at plan time)"
+  type        = bool
+  default     = false
+}
+
+variable "attach_policy_json" {
+  description = "IAM policy JSON attached inline to the execution role (e.g. DynamoDB access). Required when attach_policy is true."
+  type        = string
+  default     = null
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch log retention for the function log group"
+  type        = number
+  default     = 30
+}

@@ -11,3 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+output "distribution_id" {
+  description = "ID of the CloudFront distribution"
+  value       = aws_cloudfront_distribution.this.id
+}
+
+output "domain_name" {
+  description = "Domain name of the distribution (d123.cloudfront.net)"
+  value       = aws_cloudfront_distribution.this.domain_name
+}
+
+output "hosted_zone_id" {
+  description = "Route 53 zone ID of the distribution, for alias records"
+  value       = aws_cloudfront_distribution.this.hosted_zone_id
+}

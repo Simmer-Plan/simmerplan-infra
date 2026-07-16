@@ -11,9 +11,71 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
+# Post-deploy health verification (SIM-33). Requires the AWS CLI authenticated
+# for the target account (locally: AWS_PROFILE; CI: OIDC role).
+#
+#   ansible-playbook playbooks/health_check.yml -e environment=sandbox
+#
+# Required extra vars: environment (sandbox|prod)
+# Optional extra vars: aws_region (default ca-central-1)
+
 - name: Run environment health checks
   hosts: localhost
   gather_facts: false
-  # Stub — implementation in SIM-25
-  tasks: []
+
+  vars:
+    aws_region: ca-central-1
+
+  tasks:
+    - name: Validate environment
+      ansible.builtin.assert:
+        that:
+          - environment is defined
+          - environment in ['sandbox', 'prod']
+        fail_msg: "Pass -e environment=sandbox or -e environment=prod"
+
+    - name: Check DynamoDB table is ACTIVE
+      ansible.builtin.command: >-
+        aws dynamodb describe-table
+        --table-name simmerplan-{{ environment }}
+        --region {{ aws_region }}
+        --query Table.TableStatus --output text
+      register: table_status
+      changed_when: false
+      failed_when: table_status.stdout != 'ACTIVE'
+
+    - name: Check Lambda function is Active
+      ansible.builtin.command: >-
+        aws lambda get-function
+        --function-name simmerplan-api-{{ environment }}
+        --region {{ aws_region }}
+        --query Configuration.State --output text
+      register: lambda_state
+      changed_when: false
+      failed_when: lambda_state.stdout != 'Active'
+
+    - name: Discover API endpoint
+      ansible.builtin.command: >-
+        aws apigatewayv2 get-apis
+        --region {{ aws_region }}
+        --query "Items[?Name=='simmerplan-api-{{ environment }}'].ApiEndpoint | [0]"
+        --output text
+      register: api_endpoint
+      changed_when: false
+      failed_when: api_endpoint.stdout in ['', 'None']
+
+    - name: Check API responds with HTTP 200
+      ansible.builtin.uri:
+        url: "{{ api_endpoint.stdout }}/health"
+        status_code: 200
+        return_content: true
+      register: api_response
+
+    - name: Health check summary
+      ansible.builtin.debug:
+        msg:
+          - "DynamoDB simmerplan-{{ environment }}: {{ table_status.stdout }}"
+          - "Lambda simmerplan-api-{{ environment }}: {{ lambda_state.stdout }}"
+          - "API {{ api_endpoint.stdout }}: HTTP {{ api_response.status }}"

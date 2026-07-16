@@ -11,3 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+output "secret_arns" {
+  description = "Map of secret name to ARN"
+  value       = { for k, s in aws_secretsmanager_secret.this : k => s.arn }
+}

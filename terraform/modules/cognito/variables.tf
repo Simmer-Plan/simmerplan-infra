@@ -11,3 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+variable "pool_name" {
+  description = "Name of the Cognito user pool"
+  type        = string
+}
+
+variable "custom_auth_triggers" {
+  description = "CUSTOM_AUTH trigger lambdas for Google-federated sign-in (SIM-37). Null skips trigger wiring."
+  type = object({
+    define_arn           = string
+    define_function_name = string
+    create_arn           = string
+    create_function_name = string
+    verify_arn           = string
+    verify_function_name = string
+  })
+  default = null
+}
