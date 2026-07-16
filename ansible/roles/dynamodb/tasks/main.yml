@@ -12,9 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-- name: Verify node is available
-  ansible.builtin.command: node --version
+- name: Verify node and pnpm are available
+  ansible.builtin.command: "{{ item }} --version"
   changed_when: false
+  loop:
+    - node
+    - pnpm
 
 - name: Verify scaffold script exists
   ansible.builtin.stat:
@@ -22,8 +25,12 @@
   register: scaffold_script
   failed_when: not scaffold_script.stat.exists
 
+# simmerplan-app is a pnpm workspace; the scaffold lives in the
+# @simmerplan/scripts package and is run via the root `scaffold:db` script
+# (which filters to that package). `npx tsx` does not resolve tsx from the
+# workspace root, so invoke through pnpm.
 - name: Scaffold DynamoDB table
-  ansible.builtin.command: npx tsx scripts/scaffold-db.ts
+  ansible.builtin.command: pnpm run scaffold:db
   args:
     chdir: "{{ app_repo_path }}"
   environment:
