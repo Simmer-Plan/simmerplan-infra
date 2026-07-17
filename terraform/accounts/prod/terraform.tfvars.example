@@ -7,3 +7,12 @@ account_id  = "333333333333"  # prod account ID
 # credential_process). A profile using the `aws login` session flow will NOT work.
 # See CLAUDE.md → Authentication (local runs).
 # aws_profile = "simmerplan-management-tf"
+
+# Custom domain. Keep enable_custom_domain = false for the first apply, then set
+# the route53_name_servers output at the domain registrar, flip to true, and
+# re-apply via CI. Applying with unregistered name servers hangs on ACM validation.
+# domain_name          = "simmerplan.com"
+# enable_custom_domain = false
+
+# Email for CloudWatch alarm notifications (subscription requires manual confirm).
+# alarm_email = "you@example.com"
