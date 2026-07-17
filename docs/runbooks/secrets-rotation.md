@@ -24,7 +24,7 @@ values never pass through Terraform state. Rotation is
    ```bash
    cd ansible
    ansible-playbook playbooks/rotate_secrets.yml \
-     -e environment=<env> \
+     -e env=<env> \
      -e secret_name=simmerplan-google-oauth-<env> \
      -e secret_value='{"client_id":"…","client_secret":"…"}'
    ```

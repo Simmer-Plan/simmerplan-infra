@@ -44,7 +44,7 @@ infrastructure before anyone applies anything.
 ### Verification
 
 - `terraform plan` reports `No changes` (or only the expected differences)
-- `ansible-playbook playbooks/health_check.yml -e environment=<env>` passes
+- `ansible-playbook playbooks/health_check.yml -e env=<env>` passes
 
 ## Case 2 — Roll back Lambda code
 
@@ -76,7 +76,7 @@ package — Ansible owns deploys), so code rollback is an AWS operation:
 
    ```bash
    cd simmerplan-app && git checkout <last-good-sha> && cd ../simmerplan-infra/ansible
-   ansible-playbook playbooks/deploy_lambda.yml -e environment=<env>
+   ansible-playbook playbooks/deploy_lambda.yml -e env=<env>
    ```
 
 ### Verification

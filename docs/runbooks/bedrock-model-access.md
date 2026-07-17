@@ -22,7 +22,7 @@ the API Lambda role). The verification playbook is
 
    ```bash
    cd ansible
-   ansible-playbook playbooks/enable_bedrock.yml -e environment=<env>
+   ansible-playbook playbooks/enable_bedrock.yml -e env=<env>
    ```
 
    If models are listed, access already exists — stop here.

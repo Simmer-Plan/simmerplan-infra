@@ -18,9 +18,10 @@
 # playbook verifies invoke access and prints the console procedure when the
 # requested model is not yet accessible.
 #
-#   ansible-playbook playbooks/enable_bedrock.yml -e environment=sandbox
+#   ansible-playbook playbooks/enable_bedrock.yml -e env=sandbox
 #
-# Required extra vars: environment
+# Required extra vars: env (sandbox|prod). NB: 'environment' is a reserved
+# Ansible keyword — do not use it as a variable name.
 # Optional extra vars: model_prefix (default anthropic.)
 
 - name: Enable Bedrock model access
@@ -35,9 +36,9 @@
     - name: Validate environment
       ansible.builtin.assert:
         that:
-          - environment is defined
-          - environment in ['sandbox', 'prod']
-        fail_msg: "Pass -e environment=sandbox or -e environment=prod"
+          - env is defined
+          - env in ['sandbox', 'prod']
+        fail_msg: "Pass -e env=sandbox or -e env=prod"
 
     - name: List accessible foundation models with the requested prefix
       ansible.builtin.command: >-

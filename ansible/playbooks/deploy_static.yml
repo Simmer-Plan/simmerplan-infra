@@ -18,7 +18,8 @@
 # when no build output exists yet (the app repo has no frontend build until
 # Phase 2).
 #
-# Required extra vars: environment (sandbox|prod)
+# Required extra vars: env (sandbox|prod). NB: 'environment' is a reserved
+# Ansible keyword — do not use it as a variable name.
 # Optional extra vars: app_repo_path, static_dir
 
 - name: Deploy static assets to S3/CloudFront
@@ -34,9 +35,9 @@
     - name: Validate environment
       ansible.builtin.assert:
         that:
-          - environment is defined
-          - environment in ['sandbox', 'prod']
-        fail_msg: "Pass -e environment=sandbox or -e environment=prod"
+          - env is defined
+          - env in ['sandbox', 'prod']
+        fail_msg: "Pass -e env=sandbox or -e env=prod"
 
     - name: Check for static build output
       ansible.builtin.stat:
@@ -50,7 +51,7 @@
     - name: Sync build output to the static bucket
       ansible.builtin.command: >-
         aws s3 sync {{ static_dir }}
-        s3://simmerplan-static-{{ environment }}
+        s3://simmerplan-static-{{ env }}
         --region {{ aws_region }} --delete
       changed_when: true
 
@@ -58,7 +59,7 @@
       ansible.builtin.command: >-
         aws cloudfront list-distributions --query
         "DistributionList.Items[?starts_with(Origins.Items[0].DomainName,
-        'simmerplan-static-{{ environment }}.')].Id | [0]"
+        'simmerplan-static-{{ env }}.')].Id | [0]"
         --output text
       register: distribution_id
       changed_when: false
