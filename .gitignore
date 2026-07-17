@@ -4,6 +4,10 @@
 *.tfvars
 !*.tfvars.example
 .terraform.lock.hcl
+
+# Saved plan files (may embed sensitive values)
+*.tfplan
+tf.plan
 *.retry
 inventory/*.ini
 !inventory/*.example.ini
