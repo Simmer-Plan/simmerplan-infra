@@ -11,23 +11,132 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
-# Stub — full implementation in SIM-25
+# Terraform Plan (SIM-34). Runs on PRs that touch terraform/, authenticated
+# via OIDC — no long-lived AWS credentials anywhere.
+#
+# The target workspace follows the PR base branch:
+#   development -> terraform/accounts/sandbox
+#   main        -> terraform/accounts/prod
+# The management workspace is applied manually and is not covered by CI.
+#
+# Required repository variables (Settings -> Secrets and variables -> Actions):
+#   AWS_DEPLOY_ROLE_ARN  arn:aws:iam::<mgmt-account>:role/TerraformDeployRole
+#   SANDBOX_ACCOUNT_ID   sandbox member account ID
+#   PROD_ACCOUNT_ID      prod member account ID
+#   TF_STATE_BUCKET      remote state bucket from terraform/bootstrap
+
 name: Terraform Plan
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, development]
     paths:
       - 'terraform/**'
 
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: terraform-plan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ca-central-1
+  TF_IN_AUTOMATION: "true"
+  TF_ENV: ${{ github.base_ref == 'main' && 'prod' || 'sandbox' }}
+  TF_ACCOUNT_ID: ${{ github.base_ref == 'main' && vars.PROD_ACCOUNT_ID || vars.SANDBOX_ACCOUNT_ID }}
+
 jobs:
   plan:
-    name: Terraform Plan
+    name: Plan (${{ github.base_ref == 'main' && 'prod' || 'sandbox' }})
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Placeholder — implementation in SIM-25
-        run: echo "Terraform plan stub"
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.15.0"
+
+      - name: Terraform fmt
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init
+        working-directory: terraform/accounts/${{ env.TF_ENV }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform validate
+        working-directory: terraform/accounts/${{ env.TF_ENV }}
+        run: terraform validate -no-color
+
+      - name: Terraform plan
+        id: plan
+        working-directory: terraform/accounts/${{ env.TF_ENV }}
+        continue-on-error: true
+        run: |
+          terraform plan -input=false -no-color \
+            -var="account_id=${TF_ACCOUNT_ID}"
+
+      - name: Comment plan on PR
+        uses: actions/github-script@v7
+        env:
+          PLAN_STDOUT: ${{ steps.plan.outputs.stdout }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+        with:
+          script: |
+            const marker = `<!-- terraform-plan-${process.env.TF_ENV} -->`;
+            const plan = (process.env.PLAN_STDOUT || '').slice(0, 60000);
+            const status = process.env.PLAN_OUTCOME === 'success' ? '✅' : '❌';
+            const body = [
+              marker,
+              `## ${status} Terraform Plan — \`${process.env.TF_ENV}\``,
+              '<details><summary>Show plan</summary>',
+              '',
+              '```hcl',
+              plan,
+              '```',
+              '</details>',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
