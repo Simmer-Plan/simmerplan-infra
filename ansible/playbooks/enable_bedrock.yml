@@ -11,9 +11,51 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
+# Verify Bedrock model access in an account (SIM-36). Model access cannot be
+# enabled by API — it is a one-time console action per account — so this
+# playbook verifies invoke access and prints the console procedure when the
+# requested model is not yet accessible.
+#
+#   ansible-playbook playbooks/enable_bedrock.yml -e environment=sandbox
+#
+# Required extra vars: environment
+# Optional extra vars: model_prefix (default anthropic.)
+
 - name: Enable Bedrock model access
   hosts: localhost
   gather_facts: false
-  # Stub — implementation in SIM-25
-  tasks: []
+
+  vars:
+    aws_region: ca-central-1
+    model_prefix: "anthropic."
+
+  tasks:
+    - name: Validate environment
+      ansible.builtin.assert:
+        that:
+          - environment is defined
+          - environment in ['sandbox', 'prod']
+        fail_msg: "Pass -e environment=sandbox or -e environment=prod"
+
+    - name: List accessible foundation models with the requested prefix
+      ansible.builtin.command: >-
+        aws bedrock list-foundation-models --region {{ aws_region }}
+        --query "modelSummaries[?starts_with(modelId, '{{ model_prefix }}')].modelId"
+        --output text
+      register: models
+      changed_when: false
+
+    - name: Fail with console instructions when no models are accessible
+      ansible.builtin.fail:
+        msg: >-
+          No '{{ model_prefix }}' models accessible in this account. Enable
+          them in the console: AWS Console -> Amazon Bedrock -> Model access
+          -> Manage model access -> tick the Anthropic models -> Submit.
+          Access is granted per account and usually activates within minutes.
+      when: models.stdout | trim | length == 0
+
+    - name: Accessible models
+      ansible.builtin.debug:
+        msg: "{{ models.stdout.split() }}"
