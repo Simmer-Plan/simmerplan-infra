@@ -163,13 +163,29 @@ Schema design: SIM-6. Scaffold script: `scripts/scaffold-db.ts` in simmerplan-ap
 
 ## CI/CD (GitHub Actions)
 
-Workflows are stubs pending SIM-25:
+Implemented in SIM-34. All workflows authenticate via OIDC (no long-lived credentials);
+the target environment follows the branch (`development` → sandbox, `main` → prod).
 
-- `terraform_plan.yml` — triggered on PRs to `main`/`develop` when `terraform/` changes
-- `terraform_apply.yml` — triggered on push to `main`/`develop` when `terraform/` changes
-- `ansible_deploy.yml` — triggered on push to `main`/`develop` when `ansible/` changes
+- `terraform_plan.yml` — PRs touching `terraform/**`: fmt + validate + plan, posts the plan
+  as a PR comment (updated in place on re-push)
+- `terraform_apply.yml` — push to `development` auto-applies sandbox; push to `main` applies
+  prod behind the required-reviewers rule on the `prod` GitHub environment
+- `ansible_deploy.yml` — push touching `ansible/**`, plus after every successful Terraform
+  Apply: runs `deploy_lambda.yml`, `deploy_static.yml`, then `health_check.yml`
 
-GitHub Actions authenticates to AWS via OIDC (no long-lived credentials) using the `oidc` module.
+The management workspace is **not** covered by CI — apply it manually.
+
+Required repository variables (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | Value |
+|---|---|
+| `AWS_DEPLOY_ROLE_ARN` | `TerraformDeployRole` ARN in the management account |
+| `SANDBOX_ACCOUNT_ID` | sandbox member account ID |
+| `PROD_ACCOUNT_ID` | prod member account ID |
+| `TF_STATE_BUCKET` | state bucket name from `terraform/bootstrap` outputs |
+
+One-time repo setup: create GitHub environments `sandbox` and `prod`, and add a
+required-reviewers protection rule to `prod` — that rule is the manual approval gate.
 
 ---
 
