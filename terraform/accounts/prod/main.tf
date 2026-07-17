@@ -302,7 +302,12 @@ module "api_gateway" {
   stage_name = "$default"
 
   # /auth is where tokens come from — everything else requires one.
+  # /health is public so the post-deploy health check can reach the api
+  # lambda without a token (stub returns 200/ok; the app serves it post-deploy).
   routes = {
+    "GET /health" = {
+      invoke_arn = module.lambda_api.invoke_arn
+    }
     "ANY /auth/{proxy+}" = {
       invoke_arn = module.lambda_auth.invoke_arn
     }
