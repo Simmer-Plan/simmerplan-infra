@@ -12,4 +12,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
-# Lambda role tasks — implementation in SIM-25
+# Lambda code deploy (SIM-40). Builds the app's esbuild bundles and pushes each
+# to the matching function. Terraform owns the function resources and ignores
+# code changes, so this role is the code-deploy path.
+
+- name: Validate environment
+  ansible.builtin.assert:
+    that:
+      - env is defined
+      - env in ['sandbox', 'prod']
+    fail_msg: "Pass -e env=sandbox or -e env=prod"
+
+- name: Verify node and pnpm are available
+  ansible.builtin.command: "{{ item }} --version"
+  changed_when: false
+  loop:
+    - node
+    - pnpm
+
+- name: Verify the api package exists
+  ansible.builtin.stat:
+    path: "{{ api_package_dir }}/esbuild.config.ts"
+  register: api_pkg
+  failed_when: not api_pkg.stat.exists
+
+- name: Install workspace dependencies
+  ansible.builtin.command: pnpm install --frozen-lockfile
+  args:
+    chdir: "{{ app_repo_path }}"
+  changed_when: false
+
+# Types are built first: the esbuild bundles import @simmerplan/types, resolved
+# from that package's build output.
+- name: Build shared types
+  ansible.builtin.command: pnpm --filter @simmerplan/types build
+  args:
+    chdir: "{{ app_repo_path }}"
+  changed_when: true
+
+- name: Build Lambda bundles (esbuild)
+  ansible.builtin.command: pnpm --filter @simmerplan/api build
+  args:
+    chdir: "{{ app_repo_path }}"
+  changed_when: true
+
+- name: Create a staging directory for zip packages
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: lambda-deploy
+  register: pkg_dir
+
+- name: Package and deploy each function
+  ansible.builtin.include_tasks: deploy_one.yml
+  loop: "{{ lambda_functions }}"
+  loop_control:
+    loop_var: fn
+    label: "{{ fn.name }}"
+
+- name: Remove the staging directory
+  ansible.builtin.file:
+    path: "{{ pkg_dir.path }}"
+    state: absent
+
+- name: Deploy summary
+  ansible.builtin.debug:
+    msg: >-
+      Deployed {{ lambda_functions | length }} functions to {{ env }}:
+      {{ lambda_functions | map(attribute='name') | join(', ') }}

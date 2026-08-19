@@ -1,0 +1,55 @@
+# Copyright 2026 Dave LeBlanc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+---
+# Package one function's bundle and push it. Invoked per item from main.yml
+# with loop_var `fn` ({ name, bundle }).
+
+- name: "Verify bundle exists — {{ fn.name }}"
+  ansible.builtin.stat:
+    path: "{{ lambda_dist_dir }}/{{ fn.bundle }}"
+  register: bundle_stat
+  failed_when: not bundle_stat.stat.exists
+
+# zip is not guaranteed on every host (e.g. WSL dev boxes); python3 always ships
+# with Ansible. arcname places the bundle at the zip root so the Lambda handler
+# (<bundle-basename>.handler) resolves it.
+- name: "Package {{ fn.bundle }} at zip root"
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "-c"
+      - >-
+        import zipfile, sys;
+        z = zipfile.ZipFile(sys.argv[1], 'w', zipfile.ZIP_DEFLATED);
+        z.write(sys.argv[2], arcname=sys.argv[3]);
+        z.close()
+      - "{{ pkg_dir.path }}/{{ fn.name }}.zip"
+      - "{{ lambda_dist_dir }}/{{ fn.bundle }}"
+      - "{{ fn.bundle }}"
+  changed_when: true
+
+- name: "Update function code — {{ fn.name }}"
+  ansible.builtin.command: >-
+    aws lambda update-function-code
+    --function-name {{ fn.name }}
+    --zip-file fileb://{{ pkg_dir.path }}/{{ fn.name }}.zip
+    --region {{ aws_region }}
+  changed_when: true
+
+- name: "Wait for {{ fn.name }} update to finish"
+  ansible.builtin.command: >-
+    aws lambda wait function-updated
+    --function-name {{ fn.name }}
+    --region {{ aws_region }}
+  changed_when: false

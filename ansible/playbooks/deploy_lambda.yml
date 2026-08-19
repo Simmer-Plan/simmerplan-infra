@@ -12,9 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ---
+# Deploy Lambda function code (SIM-40). Builds the app's esbuild bundles and
+# pushes each to the matching function via update-function-code. Terraform owns
+# the function resources (and ignores code changes), so this is the code path.
+#
+#   ansible-playbook playbooks/deploy_lambda.yml -e env=sandbox
+#
+# Required extra vars: env (sandbox|prod). NB: 'environment' is a reserved
+# Ansible keyword — do not use it as a variable name.
+# Optional extra vars: app_repo_path (defaults to sibling simmerplan-app dir)
 - name: Deploy Lambda functions
   hosts: localhost
   gather_facts: false
-  # Stub — implementation in SIM-25
   roles:
     - lambda
