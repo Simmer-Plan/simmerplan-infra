@@ -90,18 +90,18 @@ jobs:
         working-directory: ansible
         run: >-
           ansible-playbook playbooks/deploy_lambda.yml
-          -e environment=${{ env.DEPLOY_ENV }}
+          -e env=${{ env.DEPLOY_ENV }}
           -e app_repo_path=${{ github.workspace }}/simmerplan-app
 
       - name: Deploy static assets
         working-directory: ansible
         run: >-
           ansible-playbook playbooks/deploy_static.yml
-          -e environment=${{ env.DEPLOY_ENV }}
+          -e env=${{ env.DEPLOY_ENV }}
           -e app_repo_path=${{ github.workspace }}/simmerplan-app
 
       - name: Health check
         working-directory: ansible
         run: >-
           ansible-playbook playbooks/health_check.yml
-          -e environment=${{ env.DEPLOY_ENV }}
+          -e env=${{ env.DEPLOY_ENV }}
