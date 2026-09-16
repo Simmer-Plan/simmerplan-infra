@@ -157,8 +157,9 @@ module "lambda_api" {
   handler       = "index.handler"
 
   environment_variables = {
-    DYNAMODB_TABLE = module.dynamodb.table_name
-    ENVIRONMENT    = var.environment
+    DYNAMODB_TABLE   = module.dynamodb.table_name
+    ENVIRONMENT      = var.environment
+    BEDROCK_MODEL_ID = var.bedrock_model_id
   }
 
   attach_policy      = true
