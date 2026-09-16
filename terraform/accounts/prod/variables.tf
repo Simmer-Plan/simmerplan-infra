@@ -55,11 +55,13 @@ variable "alarm_email" {
 
 variable "bedrock_model_id" {
   description = <<-EOT
-    Bedrock model/inference-profile id used for meal suggestions (SIM-14).
-    PLACEHOLDER default — Bedrock model access must be enabled for this account
-    first (ansible/playbooks/enable_bedrock.yml), then set this to the real
-    inference-profile id available in the region.
+    Bedrock inference-profile id used for meal suggestions (SIM-14). Verified
+    ACTIVE in ca-central-1. Current Claude models must be invoked through an
+    inference profile, not a bare foundation-model id.
+
+    There is no `ca.` Anthropic profile; `global.` is used for availability.
+    Switch to `us.anthropic.claude-sonnet-5` to pin inference to US regions.
   EOT
   type        = string
-  default     = "anthropic.claude-sonnet-5"
+  default     = "global.anthropic.claude-sonnet-5"
 }
