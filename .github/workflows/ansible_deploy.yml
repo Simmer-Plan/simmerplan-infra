@@ -60,8 +60,10 @@ jobs:
           BRANCH="${{ github.event.workflow_run.head_branch || github.ref_name }}"
           if [ "$BRANCH" = "main" ]; then
             echo "DEPLOY_ENV=prod" >> "$GITHUB_ENV"
+            echo "APP_REF=main" >> "$GITHUB_ENV"
           else
             echo "DEPLOY_ENV=sandbox" >> "$GITHUB_ENV"
+            echo "APP_REF=development" >> "$GITHUB_ENV"
           fi
           echo "Deploying to: $BRANCH"
 
@@ -70,10 +72,15 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref_name }}
 
+      # Without an explicit ref this checks out the app repo's DEFAULT branch
+      # (main), not the branch matching the environment being deployed — which
+      # silently ships stale code. Track the deploy target: sandbox -> the app's
+      # development branch, prod -> main.
       - name: Checkout app (deploy artifacts source)
         uses: actions/checkout@v4
         with:
           repository: Simmer-Plan/simmerplan-app
+          ref: ${{ env.APP_REF }}
           path: simmerplan-app
 
       - name: Configure AWS credentials (OIDC)
