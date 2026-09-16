@@ -102,6 +102,10 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.TARGET_ACCOUNT_ID }}:role/TerraformDeployRole
           aws-region: ${{ env.AWS_REGION }}
           role-chaining: true
+          # The action tags the session by default, which needs sts:TagSession.
+          # The member-account role's trust policy allows AssumeRole only (as
+          # does Terraform's assume_role, which is why apply works), so skip it.
+          role-skip-session-tagging: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
