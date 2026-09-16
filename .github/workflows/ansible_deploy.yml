@@ -93,12 +93,15 @@ jobs:
         with:
           version: 9
 
+      # No pnpm cache here: the app is checked out into a subdirectory and this
+      # repo has no root package.json, so setup-node cannot resolve the pnpm
+      # store path and fails with "Some specified paths were not resolved".
+      # deploy_lambda runs its own `pnpm install --frozen-lockfile` regardless,
+      # so the cache is only an optimisation.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: simmerplan-app/pnpm-lock.yaml
 
       - name: Deploy Lambda functions
         working-directory: ansible
