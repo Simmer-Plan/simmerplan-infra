@@ -61,9 +61,11 @@ jobs:
           if [ "$BRANCH" = "main" ]; then
             echo "DEPLOY_ENV=prod" >> "$GITHUB_ENV"
             echo "APP_REF=main" >> "$GITHUB_ENV"
+            echo "TARGET_ACCOUNT_ID=${{ vars.PROD_ACCOUNT_ID }}" >> "$GITHUB_ENV"
           else
             echo "DEPLOY_ENV=sandbox" >> "$GITHUB_ENV"
             echo "APP_REF=development" >> "$GITHUB_ENV"
+            echo "TARGET_ACCOUNT_ID=${{ vars.SANDBOX_ACCOUNT_ID }}" >> "$GITHUB_ENV"
           fi
           echo "Deploying to: $BRANCH"
 
@@ -83,11 +85,23 @@ jobs:
           ref: ${{ env.APP_REF }}
           path: simmerplan-app
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials (OIDC -> management)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      # The OIDC role lives in the MANAGEMENT account, but the resources being
+      # deployed live in the member account — without this chain every `aws`
+      # call from the playbooks targets management and fails with
+      # ResourceNotFoundException. Terraform does the equivalent via the
+      # provider's assume_role block.
+      - name: Assume the target account deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.TARGET_ACCOUNT_ID }}:role/TerraformDeployRole
+          aws-region: ${{ env.AWS_REGION }}
+          role-chaining: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
