@@ -27,6 +27,9 @@ on:
   workflow_run:
     workflows: ["Terraform Apply"]
     types: [completed]
+  # Manual trigger: the push filter above only fires on ansible/** changes, so a
+  # workflow-only or app-side change otherwise has no way to redeploy.
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -47,6 +50,7 @@ jobs:
     # deployable branch.
     if: >-
       github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        contains(fromJSON('["main", "development"]'), github.event.workflow_run.head_branch))
 
