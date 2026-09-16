@@ -52,3 +52,14 @@ variable "alarm_email" {
   type        = string
   default     = null
 }
+
+variable "bedrock_model_id" {
+  description = <<-EOT
+    Bedrock model/inference-profile id used for meal suggestions (SIM-14).
+    PLACEHOLDER default — Bedrock model access must be enabled for this account
+    first (ansible/playbooks/enable_bedrock.yml), then set this to the real
+    inference-profile id available in the region.
+  EOT
+  type        = string
+  default     = "anthropic.claude-sonnet-5"
+}

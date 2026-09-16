@@ -23,9 +23,11 @@ aws_region: ca-central-1
 # Terraform handler (e.g. handler auth-handler.handler -> auth-handler.js), and
 # esbuild emits CommonJS, so each bundle deploys as <basename>.js unchanged.
 #
-# simmerplan-api-<env> (handler index.handler) has no app bundle and is left as
-# the Terraform stub, which answers the public /health route.
+# simmerplan-api-<env> (handler index.handler) is the consolidated application
+# Lambda (SIM-41): it serves every authorizer-gated router behind ANY /{proxy+}
+# and answers the public /health route directly.
 lambda_functions:
+  - { name: "simmerplan-api-{{ env }}", bundle: "index.js" }
   - { name: "simmerplan-authorizer-{{ env }}", bundle: "auth-authorizer.js" }
   - { name: "simmerplan-auth-{{ env }}", bundle: "auth-handler.js" }
   - { name: "simmerplan-household-{{ env }}", bundle: "household-handler.js" }
